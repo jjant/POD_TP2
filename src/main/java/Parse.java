@@ -53,6 +53,7 @@ public class Parse {
         int flightClassIndex = 2;
         int originOaciIndex = 5;
         int destinationOaciIndex = 6;
+        int airlineIndex = 7;
 
         while ((values = csvReader.readNext()) != null) {
             FlightType flightType = FlightType.parse(values[flightTypeIndex]);
@@ -60,8 +61,9 @@ public class Parse {
             FlightClass flightClass = FlightClass.parse(values[flightClassIndex]);
             String originOaci = values[originOaciIndex];
             String destinationOaci = values[destinationOaciIndex];
+            String airline = values[airlineIndex];
 
-            Move move = Move.of(flightType, moveType, flightClass, originOaci, destinationOaci);
+            Move move = Move.of(flightType, moveType, flightClass, originOaci, destinationOaci, airline);
 
             moves.add(move);
         }
