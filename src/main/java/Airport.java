@@ -1,4 +1,6 @@
-public class Airport {
+import java.io.Serializable;
+
+public class Airport implements Serializable {
     public final String oaci;
     public final String name;
     public final String province;

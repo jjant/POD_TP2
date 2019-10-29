@@ -1,4 +1,6 @@
-public enum FlightType {
+import java.io.Serializable;
+
+public enum FlightType  implements Serializable {
     International,
     Domestic,
     NA;

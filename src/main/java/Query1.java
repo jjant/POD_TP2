@@ -1,5 +1,7 @@
 import com.hazelcast.client.config.ClientConfig;
+import com.hazelcast.config.*;
 import com.hazelcast.client.HazelcastClient;
+import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
@@ -42,9 +44,9 @@ public class Query1 {
     }
 
     public static void query1() throws IOException, ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getNetworkConfig().addAddress("10.6.0.1:5701");
-        final HazelcastInstance hazel = HazelcastClient.newHazelcastClient(clientConfig);
+        final Config config = new Config();
+//        clientConfig.getNetworkConfig().addAddress("10.6.0.1:5701");
+        final HazelcastInstance hazel = Hazelcast.newHazelcastInstance(config);
 
         JobTracker jobTracker = hazel.getJobTracker("word-count");
 
@@ -63,6 +65,6 @@ public class Query1 {
         future.get();
 
         System.out.println(future.get());
-        System.out.println("thing finished")
+        System.out.println("thing finished");
     }
 }

@@ -1,4 +1,6 @@
-public class Move {
+import java.io.Serializable;
+
+public class Move implements Serializable {
     public final FlightType flightType;
     public final MoveType moveType;
     public final FlightClass flightClass;
