@@ -32,10 +32,14 @@ public class Query2Client {
     // { Aerolíneas Argentinas: [1, 1, 1, 1, 1], Flybondi: [1] }
 
     public static class MoveRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Double>> {
+        private int N;
+
+        public MoveRankingCollator(int N) {
+            this.N = N;
+        }
+
         @Override
         public Map<String, Double> collate(Iterable<Map.Entry<String, Integer>> values) {
-            int N = 5; // TODO: Move to parameters
-
             // Calculate total amount of movements
             Long total = 0L;
             for (Map.Entry<String, Integer> entry : values) {
@@ -64,7 +68,7 @@ public class Query2Client {
             Map<String, Double> resultMap = new LinkedHashMap<>();
             Double accumulatedOtherPercentage = 0.0;
             for (Map.Entry<String, Double> entry : sortedMap.entrySet()) {
-                if (currentN++ > N) {
+                if (currentN++ > this.N) {
                     accumulatedOtherPercentage += entry.getValue();
                     continue;
                 }
@@ -110,6 +114,7 @@ public class Query2Client {
         final ClientConfig clientConfig = new ClientConfig();
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+        int N = 5; // TODO: Receive parameter
 
         JobTracker jobTracker = hazelClient.getJobTracker("move-ranking");
         IList<Move> iMoves = hazelClient.getList("g6-moves");
@@ -119,7 +124,7 @@ public class Query2Client {
         Job<String, Move> job = jobTracker.newJob(source);
 
         ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
-                .reducer(new MoveRankingReducerFactory()).submit(new MoveRankingCollator());
+                .reducer(new MoveRankingReducerFactory()).submit(new MoveRankingCollator(N));
 
         System.out.println(future.get());
         System.out.println("thing finished");

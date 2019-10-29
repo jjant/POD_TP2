@@ -21,22 +21,29 @@ import java.util.stream.Collectors;
 public class Query4Client {
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 3L;
+        private String originOaci;
+        
+        public MoveMapper(String originOaci) {
+            this.originOaci = originOaci;
+        }
 
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
-            String originOaci = "SAEZ"; // TODO: Move to parameters
-
-            if (move.originOaci.equals(originOaci)) {
+            if (move.originOaci.equals(this.originOaci)) {
                 context.emit(move.destinationOaci, 1);
             }
         }
     }
-    // { Aerolíneas Argentinas: [1, 1, 1, 1, 1], Flybondi: [1] }
 
     public static class AirportRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Long>> {
+        private int N;
+
+        public AirportRankingCollator(int N) {
+            this.N = N;
+        }
+
         @Override
         public Map<String, Long> collate(Iterable<Map.Entry<String, Integer>> values) {
-            int N = 5; // TODO: Move to parameters
 
             // Transform to hashmap
             Map<String, Long> totalsMap = new HashMap<>();
@@ -58,7 +65,7 @@ public class Query4Client {
             Integer currentN = 1;
             Map<String, Long> resultMap = new LinkedHashMap<>();
             for (Map.Entry<String, Long> entry : sortedMap.entrySet()) {
-                if (currentN++ > N) break;
+                if (currentN++ > this.N) break;
                 resultMap.put(entry.getKey(), entry.getValue().longValue());
             }
 
@@ -98,6 +105,8 @@ public class Query4Client {
         final ClientConfig clientConfig = new ClientConfig();
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+        int N = 5; // TODO: Receive parameter
+        String originOaci = "SAEZ"; // TODO: Receive parameter
 
         JobTracker jobTracker = hazelClient.getJobTracker("airport-ranking");
         IList<Move> iMoves = hazelClient.getList("g6-moves");
@@ -106,8 +115,8 @@ public class Query4Client {
 
         Job<String, Move> job = jobTracker.newJob(source);
 
-        ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper())
-                .reducer(new AirportRankingReducerFactory()).submit(new AirportRankingCollator());
+        ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
+                .reducer(new AirportRankingReducerFactory()).submit(new AirportRankingCollator(N));
 
         System.out.println(future.get());
         System.out.println("thing finished");
