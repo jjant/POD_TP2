@@ -1,6 +1,4 @@
-import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.config.*;
-import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
@@ -12,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public class Query1 {
+public class HazelServer {
     private static class MoveMapper implements Mapper<String, Move, Move, String> {
         @Override
         public void map(String s, Move move, Context<Move, String> context) {
@@ -43,28 +41,17 @@ public class Query1 {
         }
     }
 
-    public static void query1() throws IOException, ExecutionException, InterruptedException {
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         final Config config = new Config();
-//        clientConfig.getNetworkConfig().addAddress("10.6.0.1:5701");
-        final HazelcastInstance hazel = Hazelcast.newHazelcastInstance(config);
+        final HazelcastInstance hazelServer = Hazelcast.newHazelcastInstance(config);
 
-        JobTracker jobTracker = hazel.getJobTracker("word-count");
-
+        System.out.println("Initializing move list");
+        IList<Move> iMoves = hazelServer.getList("g6-moves");
+        iMoves.clear();
         List<Move> moves = Parse.parseMoves();
+        iMoves.addAll(moves);
+        System.out.println("Done initializing move list");
 
-        IList<Move> imoves = hazel.getList("g3-moves");
-        imoves.addAll(moves);
-
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(imoves);
-
-        Job<String, Move> job = jobTracker.newJob(source);
-
-
-        ICompletableFuture<Map<Move, String>> future = job.mapper(new MoveMapper()).reducer(new MoveReducerFactory()).submit();
-
-        future.get();
-
-        System.out.println(future.get());
-        System.out.println("thing finished");
+        System.out.println("Server ready for shit");
     }
 }

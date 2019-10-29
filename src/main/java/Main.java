@@ -6,8 +6,5 @@ public class Main {
         Parse.parseAirports().forEach(System.out::println);
 
         System.out.println("Parsed airports");
-
-        Query1.query1();
     }
-
 }
