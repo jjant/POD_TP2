@@ -17,76 +17,64 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-// TODO: Add Combiner
-public class Query2Client {
+// TODO: Add combiner
+public class Query4Client {
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
-        public static final long serialVersionUID = 1L;
+        public static final long serialVersionUID = 3L;
 
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
-            if (move.flightType == FlightType.Domestic) {
-                context.emit(move.airline, 1);
+            String originOaci = "SAEZ"; // TODO: Move to parameters
+
+            if (move.originOaci.equals(originOaci)) {
+                context.emit(move.destinationOaci, 1);
             }
         }
     }
     // { Aerolíneas Argentinas: [1, 1, 1, 1, 1], Flybondi: [1] }
 
-    public static class MoveRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Double>> {
+    public static class AirportRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Long>> {
         @Override
-        public Map<String, Double> collate(Iterable<Map.Entry<String, Integer>> values) {
+        public Map<String, Long> collate(Iterable<Map.Entry<String, Integer>> values) {
             int N = 5; // TODO: Move to parameters
 
-            // Calculate total amount of movements
-            Long total = 0L;
+            // Transform to hashmap
+            Map<String, Long> totalsMap = new HashMap<>();
             for (Map.Entry<String, Integer> entry : values) {
-                total += entry.getValue().intValue();
-            }
-
-            // Calculate percentages
-            Map<String, Double> percentagesMap = new HashMap<>();
-            for (Map.Entry<String, Integer> entry : values) {
-                Double percentage = entry.getValue().doubleValue() / new Double(total) * 100;
-                percentagesMap.put(entry.getKey(), percentage);
+                totalsMap.put(entry.getKey(), entry.getValue().longValue());
             }
             
             // Define order first by value, then lexicographically
-            Comparator<Map.Entry<String, Double>> cmp = (Map.Entry<String, Double> a, Map.Entry<String, Double> b) -> {
+            Comparator<Map.Entry<String, Long>> cmp = (Map.Entry<String, Long> a, Map.Entry<String, Long> b) -> {
                 int valueOrder = b.getValue().compareTo(a.getValue());
                 return valueOrder != 0 ? valueOrder : a.getKey().compareTo(b.getKey());
             };
 
             // Sort descending
-            Map<String, Double> sortedMap = percentagesMap.entrySet().stream().sorted(cmp).collect(
+            Map<String, Long> sortedMap = totalsMap.entrySet().stream().sorted(cmp).collect(
                     Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
 
-            // Generate ranking map with top N + Others
+            // Generate ranking map with top N
             Integer currentN = 1;
-            Map<String, Double> resultMap = new LinkedHashMap<>();
-            Double accumulatedOtherPercentage = 0.0;
-            for (Map.Entry<String, Double> entry : sortedMap.entrySet()) {
-                if (currentN++ > N) {
-                    accumulatedOtherPercentage += entry.getValue();
-                    continue;
-                }
-                Double truncatedPercentage = Math.floor(entry.getValue() * 100) / 100;
-                resultMap.put(entry.getKey(), truncatedPercentage);
+            Map<String, Long> resultMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Long> entry : sortedMap.entrySet()) {
+                if (currentN++ > N) break;
+                resultMap.put(entry.getKey(), entry.getValue().longValue());
             }
-            Double truncatedOtherPercentage = Math.floor(accumulatedOtherPercentage * 100) / 100;
-            resultMap.put("Otros", truncatedOtherPercentage);
 
             return resultMap;
         }
     }
 
-    private static class MoveRankingReducerFactory implements ReducerFactory<String, Integer, Integer> {
-        public static final long serialVersionUID = 2L;
+    private static class AirportRankingReducerFactory implements ReducerFactory<String, Integer, Integer> {
+        public static final long serialVersionUID = 4L;
 
         @Override
         public Reducer<Integer, Integer> newReducer(String airline) {
-            return new MoveRankingReducer();
+            return new AirportRankingReducer();
         }
 
-        class MoveRankingReducer extends Reducer<Integer, Integer> {
+        class AirportRankingReducer extends Reducer<Integer, Integer> {
             private volatile int moves;
 
             @Override
@@ -111,15 +99,15 @@ public class Query2Client {
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
 
-        JobTracker jobTracker = hazelClient.getJobTracker("move-ranking");
+        JobTracker jobTracker = hazelClient.getJobTracker("airport-ranking");
         IList<Move> iMoves = hazelClient.getList("g6-moves");
 
         final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
 
         Job<String, Move> job = jobTracker.newJob(source);
 
-        ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
-                .reducer(new MoveRankingReducerFactory()).submit(new MoveRankingCollator());
+        ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper())
+                .reducer(new AirportRankingReducerFactory()).submit(new AirportRankingCollator());
 
         System.out.println(future.get());
         System.out.println("thing finished");
