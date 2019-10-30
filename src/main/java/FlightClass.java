@@ -16,6 +16,10 @@ public enum FlightClass implements Serializable {
                 return PrivateFlightNationalPatent;
             case "Vuelo Privado con Matrícula Extranjera":
                 return PrivateFlightInternationalPatent;
+            // There are typos in the data
+            // "PrivadA"
+            case "Vuelo Privada con Matrícula Extranjera":
+                return PrivateFlightInternationalPatent;
             default:
                 throw new RuntimeException("Unidentified move type: " + string);
         }
