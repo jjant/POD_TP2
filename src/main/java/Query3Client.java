@@ -1,14 +1,17 @@
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.core.*;
 import com.hazelcast.mapreduce.*;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 public class Query3Client {
+    private static Logger logger = LoggerFactory.getLogger(Query4Client.class);
+
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
@@ -44,7 +47,6 @@ public class Query3Client {
         }
     }
 
-
     /**
      * Groups Airports by number of (thousand) moves
      */
@@ -59,7 +61,8 @@ public class Query3Client {
         }
     }
 
-    private static class ThousandsReducerFactory implements ReducerFactory<Integer, String, List<Pair<String, String>>> {
+    private static class ThousandsReducerFactory
+            implements ReducerFactory<Integer, String, List<Pair<String, String>>> {
 
         @Override
         public Reducer<String, List<Pair<String, String>>> newReducer(Integer integer) {
@@ -109,9 +112,11 @@ public class Query3Client {
     /**
      * Sort groups by move count and filter out groups with no airport-pairs
      */
-    private static class GroupsCollator implements Collator<Map.Entry<Integer, List<Pair<String, String>>>, List<Pair<Integer, List<Pair<String, String>>>>> {
+    private static class GroupsCollator implements
+            Collator<Map.Entry<Integer, List<Pair<String, String>>>, List<Pair<Integer, List<Pair<String, String>>>>> {
         @Override
-        public List<Pair<Integer, List<Pair<String, String>>>> collate(Iterable<Map.Entry<Integer, List<Pair<String, String>>>> values) {
+        public List<Pair<Integer, List<Pair<String, String>>>> collate(
+                Iterable<Map.Entry<Integer, List<Pair<String, String>>>> values) {
             List<Pair<Integer, List<Pair<String, String>>>> results = new ArrayList<>();
 
             for (Map.Entry<Integer, List<Pair<String, String>>> entry : values) {
@@ -123,7 +128,7 @@ public class Query3Client {
                 airportPairs.sort((pair1, pair2) -> {
                     int compareLeft = pair1.getLeft().compareTo(pair2.getLeft());
 
-                    return compareLeft != 0 ? compareLeft: pair1.getRight().compareTo(pair2.getRight());
+                    return compareLeft != 0 ? compareLeft : pair1.getRight().compareTo(pair2.getRight());
                 });
 
                 Pair<Integer, List<Pair<String, String>>> group = new ImmutablePair<>(entry.getKey(), airportPairs);
@@ -137,45 +142,40 @@ public class Query3Client {
         }
     }
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
-        final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+        ClientManager client = new ClientManager();
 
-        JobTracker jobTracker = hazelClient.getJobTracker("move-count");
-        IList<Move> iMoves = hazelClient.getList("g6-moves");
+        // Receive parameters (TODO)
+        String nodes = "127.0.0.1:5701";
 
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        // Create job
+        Job<String, Move> job = client.start("move-pairs", nodes);
 
-        Job<String, Move> job = jobTracker.newJob(source);
-
-        ICompletableFuture<Map<String, Integer>> future = job.mapper(new MoveMapper()).reducer(new MoveCountReducerFactory()).submit();
-
-        System.out.println(future.get());
-        System.out.println("Job1 finished");
+        // Process
+        logger.info("Inicio del trabajo map/reduce");
+        ICompletableFuture<Map<String, Integer>> future = job.mapper(new MoveMapper())
+                .reducer(new MoveCountReducerFactory()).submit();
 
         // Load results in a temporary map in the server
-        System.out.println("Loading results into new iMap");
         Map<String, Integer> map = future.get();
-        IMap<String, Integer> iMap = hazelClient.getMap("imap:oaci-moves");
+        IMap<String, Integer> iMap = client.hazelClient.getMap("imap:oaci-moves");
         iMap.clear();
         iMap.putAll(map);
-        System.out.println("Done");
 
-        Job<String, Integer> job2 = jobTracker.newJob(KeyValueSource.fromMap(iMap));
+        Job<String, Integer> job2 = client.jobTracker.newJob(KeyValueSource.fromMap(iMap));
+        JobCompletableFuture<List<Pair<Integer, List<Pair<String, String>>>>> future2 = job2
+                .mapper(new ThousandsMapper()).reducer(new ThousandsReducerFactory()).submit(new GroupsCollator());
 
-        System.out.println("Starting Job2");
-        JobCompletableFuture<List<Pair<Integer, List<Pair<String, String>>>>> future2 =
-                job2.mapper(new ThousandsMapper()).reducer(new ThousandsReducerFactory()).submit(new GroupsCollator());
-        System.out.println(future2.get());
-        System.out.println("Job2 finished");
-
+        // Output CSV
         output(future2.get());
+        logger.info("Fin del trabajo map/reduce");
+
+        // Close Hazelcast client
+        client.finish();
     }
 
-
     private static void output(List<Pair<Integer, List<Pair<String, String>>>> queryResults) {
-        String[] headers = {"Grupo", "Aeropuerto A", "Aeropuerto B"};
+        String[] headers = { "Grupo", "Aeropuerto A", "Aeropuerto B" };
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
@@ -184,7 +184,7 @@ public class Query3Client {
             List<Pair<String, String>> pairs = group.getRight();
 
             for (Pair<String, String> pair : pairs) {
-                String[] line = {thousands.toString(), pair.getLeft(), pair.getRight()};
+                String[] line = { thousands.toString(), pair.getLeft(), pair.getRight() };
                 lines.add(line);
             }
         }
