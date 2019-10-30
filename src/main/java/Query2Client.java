@@ -52,8 +52,13 @@ public class Query2Client {
 
             // Calculate percentages
             Map<String, Double> percentagesMap = new HashMap<>();
+            Double percentageNA = 0.0;
             for (Map.Entry<String, Integer> entry : values) {
                 Double percentage = entry.getValue().doubleValue() / new Double(total) * 100;
+                if (entry.getKey().equals("N/A")) {
+                    percentageNA = percentage;
+                    continue;
+                }
                 percentagesMap.put(entry.getKey(), percentage);
             }
 
@@ -70,7 +75,7 @@ public class Query2Client {
             // Generate ranking map with top N + Others
             Integer currentN = 1;
             Map<String, Double> resultMap = new LinkedHashMap<>();
-            Double accumulatedOtherPercentage = 0.0;
+            Double accumulatedOtherPercentage = percentageNA;
             for (Map.Entry<String, Double> entry : sortedMap.entrySet()) {
                 if (currentN++ > this.N) {
                     accumulatedOtherPercentage += entry.getValue();
