@@ -6,6 +6,7 @@ import com.opencsv.CSVReaderBuilder;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Parse {
@@ -35,6 +36,11 @@ public class Parse {
         }
 
         return airports;
+    }
+
+    public static List<String> parseNodes(String nodeString) throws IOException {
+        List<String> nodes = Arrays.asList(nodeString.split(";"));
+        return nodes;
     }
 
     public static List<Move> parseMoves() throws IOException {
