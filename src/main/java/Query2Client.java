@@ -30,7 +30,7 @@ public class Query2Client {
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
             if (move.flightType == FlightType.Domestic) {
-                context.emit(move.airline, 1);
+                context.emit(move.airline.equals("N/A") ? "" + move.hashCode() : move.airline, 1);
             }
         }
     }
@@ -147,7 +147,7 @@ public class Query2Client {
 
         lines.add(headers);
         for (Map.Entry<String, Double> entry : result.entrySet()) {
-            String[] line = { entry.getKey(), entry.getValue().toString() + "%" };
+            String[] line = { entry.getKey(), String.format(java.util.Locale.US,"%.2f", entry.getValue().doubleValue()) + "%" };
             lines.add(line);
         }
 
@@ -159,7 +159,7 @@ public class Query2Client {
         clientConfig.setProperty("hazelcast.logging.type", "none");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
         // String N = System.getProperty("n");
-        String nodes = "127.0.0.1:5701;127.0.0.1:5702";
+        String nodes = "127.0.0.1:5701";
         clientConfig.getNetworkConfig().setAddresses(Parse.parseNodes(nodes));
         int N = 5; // TODO: Receive parameter
 
