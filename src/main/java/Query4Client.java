@@ -7,6 +7,9 @@ import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,6 +22,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class Query4Client {
+    private static Logger logger = LoggerFactory.getLogger(Query4Client.class);
+
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 3L;
         private String originOaci;
@@ -142,27 +147,27 @@ public class Query4Client {
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
-        final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
-        int N = 5; // TODO: Receive parameter
-        String originOaci = "SAEZ"; // TODO: Receive parameter
+        ClientManager client = new ClientManager();
 
-        JobTracker jobTracker = hazelClient.getJobTracker("airport-ranking");
-        IList<Move> iMoves = hazelClient.getList("g6-moves");
+        // Receive parameters (TODO)
+        int N = 5;
+        String originOaci = "SAEZ";
+        String nodes = "127.0.0.1:5701";
 
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        // Create job
+        Job<String, Move> job = client.start("airport-ranking", nodes);
 
-        Job<String, Move> job = jobTracker.newJob(source);
-
+        // Process
+        logger.info("Inicio del trabajo map/reduce");
         ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
                 .combiner(new AirportRankingCombinerFactory()).reducer(new AirportRankingReducerFactory())
                 .submit(new AirportRankingCollator(N));
 
-        // Print CSV
-        Map<String, Long> result = future.get();
-        output(result);
+        // Print results
+        output(future.get());
+        logger.info("Fin del trabajo map/reduce");
 
-        System.out.println("thing finished");
+        // Close Hazelcast client
+        client.finish();
     }
 }

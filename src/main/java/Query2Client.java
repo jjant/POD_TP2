@@ -152,7 +152,8 @@ public class Query2Client {
 
         lines.add(headers);
         for (Map.Entry<String, Double> entry : result.entrySet()) {
-            String[] line = { entry.getKey(), String.format(java.util.Locale.US,"%.2f", entry.getValue().doubleValue()) + "%" };
+            String[] line = { entry.getKey(),
+                    String.format(java.util.Locale.US, "%.2f", entry.getValue().doubleValue()) + "%" };
             lines.add(line);
         }
 
@@ -160,30 +161,26 @@ public class Query2Client {
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.setProperty("hazelcast.logging.type", "none");
-        final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
-        // String N = System.getProperty("n");
+        ClientManager client = new ClientManager();
+
+        // Receive parameters (TODO)
+        int N = 5;
         String nodes = "127.0.0.1:5701";
-        clientConfig.getNetworkConfig().setAddresses(Parse.parseNodes(nodes));
-        int N = 5; // TODO: Receive parameter
 
-        JobTracker jobTracker = hazelClient.getJobTracker("move-ranking");
-        IList<Move> iMoves = hazelClient.getList("g6-moves");
+        // Create job
+        Job<String, Move> job = client.start("move-ranking", nodes);
 
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
-
-        Job<String, Move> job = jobTracker.newJob(source);
-
+        // Process
         logger.info("Inicio del trabajo map/reduce");
         ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
                 .combiner(new MoveRankingCombinerFactory()).reducer(new MoveRankingReducerFactory())
                 .submit(new MoveRankingCollator(N));
 
-        // Print CSV
-        Map<String, Double> result = future.get();
-        output(result);
+        // Print results
+        output(future.get());
         logger.info("Fin del trabajo map/reduce");
-        hazelClient.shutdown();
+
+        // Close Hazelcast client
+        client.finish();
     }
 }

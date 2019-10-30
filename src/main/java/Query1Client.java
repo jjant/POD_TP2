@@ -8,7 +8,8 @@ import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class Query1Client {
+    private static Logger logger = LoggerFactory.getLogger(Query1Client.class);
+
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
@@ -25,8 +28,7 @@ public class Query1Client {
             context.emit(airportOaci, 1);
         }
     } // { oaci: [EZ, EZ, ASF] }
-    // { EZ: [1, 1, 1, 1, 1], ASF: [1] }
-
+      // { EZ: [1, 1, 1, 1, 1], ASF: [1] }
 
     private static class MoveCountReducerFactory implements ReducerFactory<String, Integer, Integer> {
         @Override
@@ -54,7 +56,8 @@ public class Query1Client {
         }
     }
 
-    private static class MoveCollator implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
+    private static class MoveCollator
+            implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
         private List<Airport> airports;
 
         public MoveCollator(List<Airport> airports) {
@@ -66,7 +69,8 @@ public class Query1Client {
             List<Triple<String, String, Integer>> results = new ArrayList<>();
 
             for (Map.Entry<String, Integer> entry : values) {
-                String name = airports.stream().filter(airport -> airport.oaci.equals(entry.getKey())).map(airport -> airport.name).findFirst().orElse(null);
+                String name = airports.stream().filter(airport -> airport.oaci.equals(entry.getKey()))
+                        .map(airport -> airport.name).findFirst().orElse(null);
 
                 if (name == null) {
                     continue;
@@ -90,42 +94,35 @@ public class Query1Client {
         }
     }
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
-        System.out.println("Connecting to remote Hazelcast node");
-        final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
-        System.out.println("Done");
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+        ClientManager client = new ClientManager();
 
-        JobTracker jobTracker = hazelClient.getJobTracker("move-count");
-        IList<Move> iMoves = hazelClient.getList("g6-moves");
-        IList<Airport> iAirports = hazelClient.getList("g6-airports");
-        iAirports.forEach(System.out::println);
+        // Receive parameters (TODO)
+        String nodes = "127.0.0.1:5701";
 
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        // Create job
+        Job<String, Move> job = client.start("move-count", nodes);
 
-        Job<String, Move> job = jobTracker.newJob(source);
-        JobCompletableFuture<List<Triple<String, String, Integer>>> future =
-                job.mapper(new MoveMapper())
-                        .reducer(new MoveCountReducerFactory())
-                        .submit(new MoveCollator(iAirports));
+        // Process
+        logger.info("Inicio del trabajo map/reduce");
+        JobCompletableFuture<List<Triple<String, String, Integer>>> future = job.mapper(new MoveMapper())
+                .reducer(new MoveCountReducerFactory()).submit(new MoveCollator(client.iAirports));
 
-        List<Triple<String, String, Integer>> queryResults = future.get();
-        System.out.println("thing finished");
+        // Print results
+        serializeQuery(future.get());
+        logger.info("Fin del trabajo map/reduce");
 
-        System.out.println("Printing results to file:");
-        serializeQuery(queryResults);
-        System.out.println("Done");
-
+        // Close Hazelcast client
+        client.finish();
     }
 
     public static void serializeQuery(List<Triple<String, String, Integer>> queryResults) {
-        String[] headers = {"OACI", "Denominación", "Movimientos"};
+        String[] headers = { "OACI", "Denominación", "Movimientos" };
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
         for (Triple<String, String, Integer> triple : queryResults) {
-            String[] line = {triple.getLeft(), triple.getMiddle(), triple.getRight().toString()};
+            String[] line = { triple.getLeft(), triple.getMiddle(), triple.getRight().toString() };
             lines.add(line);
         }
 
