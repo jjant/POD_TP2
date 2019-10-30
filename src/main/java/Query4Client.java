@@ -143,7 +143,7 @@ public class Query4Client {
             lines.add(line);
         }
 
-        Output.print("query4.csv", lines);
+        Output.print("./results/query4.csv", lines);
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {

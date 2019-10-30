@@ -157,7 +157,7 @@ public class Query2Client {
             lines.add(line);
         }
 
-        Output.print("query2.csv", lines);
+        Output.print("./results/query2.csv", lines);
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
