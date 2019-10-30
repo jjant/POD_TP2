@@ -159,6 +159,7 @@ public class Query2Client {
         clientConfig.setProperty("hazelcast.logging.type", "none");
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+        // String N = System.getProperty("n");
         int N = 5; // TODO: Receive parameter
 
         JobTracker jobTracker = hazelClient.getJobTracker("move-ranking");
