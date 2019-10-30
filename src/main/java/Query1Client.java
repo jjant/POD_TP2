@@ -8,7 +8,8 @@ import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class Query1Client {
+    private static Logger logger = LoggerFactory.getLogger(Query1Client.class);
+
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
         public void map(String s, Move move, Context<String, Integer> context) {
@@ -93,30 +96,29 @@ public class Query1Client {
     public static void main(String[] args) throws ExecutionException, InterruptedException {
         final ClientConfig clientConfig = new ClientConfig();
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
-        System.out.println("Connecting to remote Hazelcast node");
+        clientConfig.setProperty("hazelcast.logging.type", "none");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
-        System.out.println("Done");
 
         JobTracker jobTracker = hazelClient.getJobTracker("move-count");
         IList<Move> iMoves = hazelClient.getList("g6-moves");
         IList<Airport> iAirports = hazelClient.getList("g6-airports");
-        iAirports.forEach(System.out::println);
 
         final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
 
         Job<String, Move> job = jobTracker.newJob(source);
+        
+        logger.info("Inicio del trabajo map/reduce");
+        
         JobCompletableFuture<List<Triple<String, String, Integer>>> future =
                 job.mapper(new MoveMapper())
                         .reducer(new MoveCountReducerFactory())
                         .submit(new MoveCollator(iAirports));
 
         List<Triple<String, String, Integer>> queryResults = future.get();
-        System.out.println("thing finished");
-
-        System.out.println("Printing results to file:");
         serializeQuery(queryResults);
-        System.out.println("Done");
 
+        logger.info("Fin del trabajo map/reduce");
+        hazelClient.shutdown();
     }
 
     public static void serializeQuery(List<Triple<String, String, Integer>> queryResults) {
