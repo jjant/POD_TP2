@@ -178,5 +178,6 @@ public class Query2Client {
         Map<String, Double> result = future.get();
         output(result);
         logger.info("Fin del trabajo map/reduce");
+        hazelClient.shutdown();
     }
 }
