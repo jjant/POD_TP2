@@ -156,6 +156,7 @@ public class Query2Client {
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         final ClientConfig clientConfig = new ClientConfig();
+        clientConfig.setProperty("hazelcast.logging.type", "none");
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
         final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
         int N = 5; // TODO: Receive parameter
@@ -176,8 +177,5 @@ public class Query2Client {
         Map<String, Double> result = future.get();
         output(result);
         logger.info("Fin del trabajo map/reduce");
-
-
-        System.out.println("thing finished");
     }
 }
