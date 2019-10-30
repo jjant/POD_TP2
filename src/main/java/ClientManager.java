@@ -12,9 +12,10 @@ import java.util.List;
 
 public class ClientManager {
   private static Logger logger = LoggerFactory.getLogger(Query2Client.class);
-  private HazelcastInstance hazelClient = null;
+  public HazelcastInstance hazelClient = null;
   public IList<Move> iMoves;
   public IList<Airport> iAirports;
+  public JobTracker jobTracker;
 
   public void finish() {
     hazelClient.shutdown();
@@ -44,7 +45,7 @@ public class ClientManager {
     logger.info("Fin de la lectura de los archivos");
 
     // Setup key sources
-    JobTracker jobTracker = hazelClient.getJobTracker(job);
+    jobTracker = hazelClient.getJobTracker(job);
     final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
 
     return jobTracker.newJob(source);
