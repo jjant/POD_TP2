@@ -7,6 +7,9 @@ import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,6 +22,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class Query2Client {
+    private static Logger logger = LoggerFactory.getLogger(Query2Client.class);
+
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 1L;
 
@@ -162,6 +167,7 @@ public class Query2Client {
 
         Job<String, Move> job = jobTracker.newJob(source);
 
+        logger.info("Inicio del trabajo map/reduce");
         ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
                 .combiner(new MoveRankingCombinerFactory()).reducer(new MoveRankingReducerFactory())
                 .submit(new MoveRankingCollator(N));
@@ -169,6 +175,8 @@ public class Query2Client {
         // Print CSV
         Map<String, Double> result = future.get();
         output(result);
+        logger.info("Fin del trabajo map/reduce");
+
 
         System.out.println("thing finished");
     }
