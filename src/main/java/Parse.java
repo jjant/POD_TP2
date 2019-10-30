@@ -6,6 +6,7 @@ import com.opencsv.CSVReaderBuilder;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Parse {
@@ -37,6 +38,11 @@ public class Parse {
         return airports;
     }
 
+    public static List<String> parseNodes(String nodeString) throws IOException {
+        List<String> nodes = Arrays.asList(nodeString.split(";"));
+        return nodes;
+    }
+
     public static List<Move> parseMoves() throws IOException {
         List<Move> moves = new ArrayList<>();
 
@@ -53,6 +59,7 @@ public class Parse {
         int flightClassIndex = 2;
         int originOaciIndex = 5;
         int destinationOaciIndex = 6;
+        int airlineIndex = 7;
 
         while ((values = csvReader.readNext()) != null) {
             FlightType flightType = FlightType.parse(values[flightTypeIndex]);
@@ -60,8 +67,9 @@ public class Parse {
             FlightClass flightClass = FlightClass.parse(values[flightClassIndex]);
             String originOaci = values[originOaciIndex];
             String destinationOaci = values[destinationOaciIndex];
+            String airline = values[airlineIndex];
 
-            Move move = Move.of(flightType, moveType, flightClass, originOaci, destinationOaci);
+            Move move = Move.of(flightType, moveType, flightClass, originOaci, destinationOaci, airline);
 
             moves.add(move);
         }

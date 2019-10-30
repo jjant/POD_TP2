@@ -6,17 +6,19 @@ public class Move implements Serializable {
     public final FlightClass flightClass;
     public final String originOaci;
     public final String destinationOaci;
+    public final String airline;
 
-    private Move(FlightType flightType, MoveType moveType, FlightClass flightClass, String originOaci, String destinationOaci) {
+    private Move(FlightType flightType, MoveType moveType, FlightClass flightClass, String originOaci, String destinationOaci, String airline) {
         this.flightType = flightType;
         this.moveType = moveType;
         this.flightClass = flightClass;
         this.originOaci = originOaci;
         this.destinationOaci = destinationOaci;
+        this.airline = airline;
     }
 
-    public static Move of(FlightType flightType, MoveType moveType, FlightClass flightClass, String originOaci, String destinationOaci) {
-        return new Move(flightType, moveType, flightClass, originOaci, destinationOaci);
+    public static Move of(FlightType flightType, MoveType moveType, FlightClass flightClass, String originOaci, String destinationOaci, String airline) {
+        return new Move(flightType, moveType, flightClass, originOaci, destinationOaci, airline);
     }
 
     public String toString() {
