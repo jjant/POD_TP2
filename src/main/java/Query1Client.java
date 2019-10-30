@@ -28,8 +28,7 @@ public class Query1Client {
             context.emit(airportOaci, 1);
         }
     } // { oaci: [EZ, EZ, ASF] }
-    // { EZ: [1, 1, 1, 1, 1], ASF: [1] }
-
+      // { EZ: [1, 1, 1, 1, 1], ASF: [1] }
 
     private static class MoveCountReducerFactory implements ReducerFactory<String, Integer, Integer> {
         @Override
@@ -57,7 +56,8 @@ public class Query1Client {
         }
     }
 
-    private static class MoveCollator implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
+    private static class MoveCollator
+            implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
         private List<Airport> airports;
 
         public MoveCollator(List<Airport> airports) {
@@ -69,7 +69,8 @@ public class Query1Client {
             List<Triple<String, String, Integer>> results = new ArrayList<>();
 
             for (Map.Entry<String, Integer> entry : values) {
-                String name = airports.stream().filter(airport -> airport.oaci.equals(entry.getKey())).map(airport -> airport.name).findFirst().orElse(null);
+                String name = airports.stream().filter(airport -> airport.oaci.equals(entry.getKey()))
+                        .map(airport -> airport.name).findFirst().orElse(null);
 
                 if (name == null) {
                     continue;
@@ -93,41 +94,35 @@ public class Query1Client {
         }
     }
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        final ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
-        clientConfig.setProperty("hazelcast.logging.type", "none");
-        final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+        ClientManager client = new ClientManager();
 
-        JobTracker jobTracker = hazelClient.getJobTracker("move-count");
-        IList<Move> iMoves = hazelClient.getList("g6-moves");
-        IList<Airport> iAirports = hazelClient.getList("g6-airports");
+        // Receive parameters (TODO)
+        String nodes = "127.0.0.1:5701";
 
-        final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        // Create job
+        Job<String, Move> job = client.start("move-count", nodes);
 
-        Job<String, Move> job = jobTracker.newJob(source);
-        
+        // Process
         logger.info("Inicio del trabajo map/reduce");
-        
-        JobCompletableFuture<List<Triple<String, String, Integer>>> future =
-                job.mapper(new MoveMapper())
-                        .reducer(new MoveCountReducerFactory())
-                        .submit(new MoveCollator(iAirports));
+        JobCompletableFuture<List<Triple<String, String, Integer>>> future = job.mapper(new MoveMapper())
+                .reducer(new MoveCountReducerFactory()).submit(new MoveCollator(client.iAirports));
 
-        List<Triple<String, String, Integer>> queryResults = future.get();
-        serializeQuery(queryResults);
-
+        // Print results
+        serializeQuery(future.get());
         logger.info("Fin del trabajo map/reduce");
-        hazelClient.shutdown();
+
+        // Close Hazelcast client
+        client.finish();
     }
 
     public static void serializeQuery(List<Triple<String, String, Integer>> queryResults) {
-        String[] headers = {"OACI", "Denominación", "Movimientos"};
+        String[] headers = { "OACI", "Denominación", "Movimientos" };
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
         for (Triple<String, String, Integer> triple : queryResults) {
-            String[] line = {triple.getLeft(), triple.getMiddle(), triple.getRight().toString()};
+            String[] line = { triple.getLeft(), triple.getMiddle(), triple.getRight().toString() };
             lines.add(line);
         }
 
