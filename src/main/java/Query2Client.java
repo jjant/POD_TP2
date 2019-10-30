@@ -8,6 +8,7 @@ import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -52,7 +53,7 @@ public class Query2Client {
                 Double percentage = entry.getValue().doubleValue() / new Double(total) * 100;
                 percentagesMap.put(entry.getKey(), percentage);
             }
-            
+
             // Define order first by value, then lexicographically
             Comparator<Map.Entry<String, Double>> cmp = (Map.Entry<String, Double> a, Map.Entry<String, Double> b) -> {
                 int valueOrder = b.getValue().compareTo(a.getValue());
@@ -110,6 +111,19 @@ public class Query2Client {
         }
     }
 
+    private static void output(Map<String, Double> result) {
+        String[] headers = {"Aerolínea", "Porcentaje"};
+        List<String[]> lines = new ArrayList<>();
+
+        lines.add(headers);
+        for (Map.Entry<String, Double> entry : result.entrySet()) {
+            String[] line = {entry.getKey(), entry.getValue().toString() + "%"};
+            lines.add(line);
+        }
+
+        Output.print("query2.csv", lines);
+    }
+
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         final ClientConfig clientConfig = new ClientConfig();
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
@@ -126,7 +140,10 @@ public class Query2Client {
         ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
                 .reducer(new MoveRankingReducerFactory()).submit(new MoveRankingCollator(N));
 
-        System.out.println(future.get());
+        // Print CSV
+        Map<String, Double> result = future.get();
+        output(result);
+
         System.out.println("thing finished");
     }
 }

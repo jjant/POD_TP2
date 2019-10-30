@@ -8,6 +8,7 @@ import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -101,6 +102,19 @@ public class Query4Client {
         }
     }
 
+    private static void output(Map<String, Long> result) {
+        String[] headers = {"OACI", "Despegues"};
+        List<String[]> lines = new ArrayList<>();
+
+        lines.add(headers);
+        for (Map.Entry<String, Long> entry : result.entrySet()) {
+            String[] line = {entry.getKey(), entry.getValue().toString()};
+            lines.add(line);
+        }
+
+        Output.print("query4.csv", lines);
+    }
+
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         final ClientConfig clientConfig = new ClientConfig();
         clientConfig.getNetworkConfig().addAddress("127.0.0.1:5701");
@@ -118,7 +132,10 @@ public class Query4Client {
         ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
                 .reducer(new AirportRankingReducerFactory()).submit(new AirportRankingCollator(N));
 
-        System.out.println(future.get());
+        // Print CSV
+        Map<String, Long> result = future.get();
+        output(result);
+
         System.out.println("thing finished");
     }
 }
