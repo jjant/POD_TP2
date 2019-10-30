@@ -11,36 +11,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class HazelServer {
-    private static class MoveMapper implements Mapper<String, Move, Move, String> {
-        @Override
-        public void map(String s, Move move, Context<Move, String> context) {
-            context.emit(move, move.destinationOaci);
-        }
-    }
-
-    private static class MoveReducerFactory implements ReducerFactory<Move, String, String> {
-
-        @Override
-        public Reducer<String, String> newReducer(Move move) {
-            return new WordCountReducer();
-        }
-
-        class WordCountReducer extends Reducer<String, String> {
-            @Override
-            public void beginReduce() {
-            }
-
-            @Override
-            public void reduce(String value) {
-            }
-
-            @Override
-            public String finalizeReduce() {
-                return "hey";
-            }
-        }
-    }
-
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         final Config config = new Config();
         final HazelcastInstance hazelServer = Hazelcast.newHazelcastInstance(config);
