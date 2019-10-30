@@ -52,6 +52,14 @@ public class HazelServer {
         iMoves.addAll(moves);
         System.out.println("Done initializing move list");
 
+
+        System.out.println("Initializing airport list");
+        IList<Airport> iAirports = hazelServer.getList("g6-airports");
+        iAirports.clear();
+        List<Airport> airports = Parse.parseAirports();
+        iAirports.addAll(airports);
+        System.out.println("Done initializing airport list");
+
         System.out.println("Server ready for shit");
     }
 }
