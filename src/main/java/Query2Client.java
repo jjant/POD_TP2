@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-// TODO: Add Combiner
 public class Query2Client {
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 1L;
@@ -30,7 +29,6 @@ public class Query2Client {
             }
         }
     }
-    // { Aerolíneas Argentinas: [1, 1, 1, 1, 1], Flybondi: [1] }
 
     public static class MoveRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Double>> {
         private int N;
@@ -83,6 +81,32 @@ public class Query2Client {
         }
     }
 
+    private static class MoveRankingCombinerFactory implements CombinerFactory<String, Integer, Integer> {
+        @Override
+        public Combiner<Integer, Integer> newCombiner(String key) {
+            return new MoveRankingCombiner();
+        }
+
+        class MoveRankingCombiner extends Combiner<Integer, Integer> {
+            private int sum = 0;
+
+            @Override
+            public void combine(Integer value) {
+                sum++;
+            }
+
+            @Override
+            public Integer finalizeChunk() {
+                return sum;
+            }
+
+            @Override
+            public void reset() {
+                sum = 0;
+            }
+        }
+    }
+
     private static class MoveRankingReducerFactory implements ReducerFactory<String, Integer, Integer> {
         public static final long serialVersionUID = 2L;
 
@@ -109,15 +133,16 @@ public class Query2Client {
                 return moves;
             }
         }
+
     }
 
     private static void output(Map<String, Double> result) {
-        String[] headers = {"Aerolínea", "Porcentaje"};
+        String[] headers = { "Aerolínea", "Porcentaje" };
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
         for (Map.Entry<String, Double> entry : result.entrySet()) {
-            String[] line = {entry.getKey(), entry.getValue().toString() + "%"};
+            String[] line = { entry.getKey(), entry.getValue().toString() + "%" };
             lines.add(line);
         }
 
@@ -138,7 +163,8 @@ public class Query2Client {
         Job<String, Move> job = jobTracker.newJob(source);
 
         ICompletableFuture<Map<String, Double>> future = job.mapper(new MoveMapper())
-                .reducer(new MoveRankingReducerFactory()).submit(new MoveRankingCollator(N));
+                .combiner(new MoveRankingCombinerFactory()).reducer(new MoveRankingReducerFactory())
+                .submit(new MoveRankingCollator(N));
 
         // Print CSV
         Map<String, Double> result = future.get();

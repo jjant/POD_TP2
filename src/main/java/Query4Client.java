@@ -18,12 +18,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-// TODO: Add combiner
 public class Query4Client {
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 3L;
         private String originOaci;
-        
+
         public MoveMapper(String originOaci) {
             this.originOaci = originOaci;
         }
@@ -51,7 +50,7 @@ public class Query4Client {
             for (Map.Entry<String, Integer> entry : values) {
                 totalsMap.put(entry.getKey(), entry.getValue().longValue());
             }
-            
+
             // Define order first by value, then lexicographically
             Comparator<Map.Entry<String, Long>> cmp = (Map.Entry<String, Long> a, Map.Entry<String, Long> b) -> {
                 int valueOrder = b.getValue().compareTo(a.getValue());
@@ -66,11 +65,38 @@ public class Query4Client {
             Integer currentN = 1;
             Map<String, Long> resultMap = new LinkedHashMap<>();
             for (Map.Entry<String, Long> entry : sortedMap.entrySet()) {
-                if (currentN++ > this.N) break;
+                if (currentN++ > this.N)
+                    break;
                 resultMap.put(entry.getKey(), entry.getValue().longValue());
             }
 
             return resultMap;
+        }
+    }
+
+    private static class AirportRankingCombinerFactory implements CombinerFactory<String, Integer, Integer> {
+        @Override
+        public Combiner<Integer, Integer> newCombiner(String key) {
+            return new AirportRankingCombiner();
+        }
+
+        class AirportRankingCombiner extends Combiner<Integer, Integer> {
+            private int sum = 0;
+
+            @Override
+            public void combine(Integer value) {
+                sum++;
+            }
+
+            @Override
+            public Integer finalizeChunk() {
+                return sum;
+            }
+
+            @Override
+            public void reset() {
+                sum = 0;
+            }
         }
     }
 
@@ -103,12 +129,12 @@ public class Query4Client {
     }
 
     private static void output(Map<String, Long> result) {
-        String[] headers = {"OACI", "Despegues"};
+        String[] headers = { "OACI", "Despegues" };
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
         for (Map.Entry<String, Long> entry : result.entrySet()) {
-            String[] line = {entry.getKey(), entry.getValue().toString()};
+            String[] line = { entry.getKey(), entry.getValue().toString() };
             lines.add(line);
         }
 
@@ -130,7 +156,8 @@ public class Query4Client {
         Job<String, Move> job = jobTracker.newJob(source);
 
         ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
-                .reducer(new AirportRankingReducerFactory()).submit(new AirportRankingCollator(N));
+                .combiner(new AirportRankingCombinerFactory()).reducer(new AirportRankingReducerFactory())
+                .submit(new AirportRankingCollator(N));
 
         // Print CSV
         Map<String, Long> result = future.get();
