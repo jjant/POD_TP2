@@ -11,4 +11,4 @@ public class MoveMapper implements Mapper<String, Move, String, Integer> {
       context.emit(move.airline, 1);
     }
   }
-}
+} 
