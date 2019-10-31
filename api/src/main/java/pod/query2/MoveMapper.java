@@ -8,7 +8,7 @@ public class MoveMapper implements Mapper<String, Move, String, Integer> {
   @Override
   public void map(String s, Move move, Context<String, Integer> context) {
     if (move.flightType == FlightType.Domestic) {
-        context.emit(move.airline.equals("N/A") ? "" + move.hashCode() : move.airline, 1);
+      context.emit(move.airline, 1);
     }
-}
+  }
 }
