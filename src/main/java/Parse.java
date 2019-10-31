@@ -6,7 +6,6 @@ import com.opencsv.CSVReaderBuilder;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Parse {
@@ -24,7 +23,7 @@ public class Parse {
                 .withSkipLines(1)
                 .build();
 
-        String[] values = null;
+        String[] values;
         while ((values = csvReader.readNext()) != null) {
             String oaci = values[oaciIndexInCSV];
             String name = values[nameIndexInCSV];
@@ -47,7 +46,7 @@ public class Parse {
                 .withSkipLines(1)
                 .build();
 
-        String[] values = null;
+        String[] values;
 
         int flightTypeIndex = 3;
         int moveTypeIndex = 4;

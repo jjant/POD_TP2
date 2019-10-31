@@ -10,12 +10,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public class Query3Client {
-    private static Logger logger = LoggerFactory.getLogger(Query3Client.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query3Client.class);
 
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
@@ -32,22 +35,22 @@ public class Query3Client {
             return new MoveCountReducer();
         }
 
-        class MoveCountReducer extends Reducer<Integer, Integer> {
-            private volatile int moves;
+        static class MoveCountReducer extends Reducer<Integer, Integer> {
+            private volatile AtomicInteger moves;
 
             @Override
             public void beginReduce() {
-                moves = 0;
+                moves = new AtomicInteger(0);
             }
 
             @Override
             public void reduce(Integer value) {
-                moves += value.intValue();
+                moves.getAndAdd(value);
             }
 
             @Override
             public Integer finalizeReduce() {
-                return moves;
+                return moves.get();
             }
         }
     }
@@ -71,16 +74,11 @@ public class Query3Client {
 
         @Override
         public Reducer<String, List<Pair<String, String>>> newReducer(Integer integer) {
-            return new ThousandsReducer(integer);
+            return new ThousandsReducer();
         }
 
-        class ThousandsReducer extends Reducer<String, List<Pair<String, String>>> {
+        static class ThousandsReducer extends Reducer<String, List<Pair<String, String>>> {
             private List<String> airportsToPair;
-            private Integer group;
-
-            public ThousandsReducer(Integer group) {
-                this.group = group;
-            }
 
             @Override
             public void beginReduce() {
@@ -130,11 +128,8 @@ public class Query3Client {
                     continue;
                 }
 
-                airportPairs.sort((pair1, pair2) -> {
-                    int compareLeft = pair1.getLeft().compareTo(pair2.getLeft());
-
-                    return compareLeft != 0 ? compareLeft : pair1.getRight().compareTo(pair2.getRight());
-                });
+                // Sorts airportPairs alphabetically, first on the left airport, then on the right airport
+                airportPairs.sort(Comparator.comparing((Function<Pair<String, String>, String>) Pair::getLeft).thenComparing(Pair::getRight));
 
                 Pair<Integer, List<Pair<String, String>>> group = new ImmutablePair<>(entry.getKey(), airportPairs);
 

@@ -8,14 +8,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Query4Client {
-    private static Logger logger = LoggerFactory.getLogger(Query4Client.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query4Client.class);
 
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 3L;
-        private String originOaci;
+        private final String originOaci;
 
         public MoveMapper(String originOaci) {
             this.originOaci = originOaci;
@@ -30,7 +31,7 @@ public class Query4Client {
     }
 
     public static class AirportRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Long>> {
-        private int N;
+        private final int N;
 
         public AirportRankingCollator(int N) {
             this.N = N;
@@ -56,12 +57,12 @@ public class Query4Client {
                     Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
 
             // Generate ranking map with top N
-            Integer currentN = 1;
+            int currentN = 1;
             Map<String, Long> resultMap = new LinkedHashMap<>();
             for (Map.Entry<String, Long> entry : sortedMap.entrySet()) {
                 if (currentN++ > this.N)
                     break;
-                resultMap.put(entry.getKey(), entry.getValue().longValue());
+                resultMap.put(entry.getKey(), entry.getValue());
             }
 
             return resultMap;
@@ -74,7 +75,7 @@ public class Query4Client {
             return new AirportRankingCombiner();
         }
 
-        class AirportRankingCombiner extends Combiner<Integer, Integer> {
+        static class AirportRankingCombiner extends Combiner<Integer, Integer> {
             private int sum = 0;
 
             @Override
@@ -102,22 +103,22 @@ public class Query4Client {
             return new AirportRankingReducer();
         }
 
-        class AirportRankingReducer extends Reducer<Integer, Integer> {
-            private volatile int moves;
+        static class AirportRankingReducer extends Reducer<Integer, Integer> {
+            private volatile AtomicInteger moves;
 
             @Override
             public void beginReduce() {
-                moves = 0;
+                moves= new AtomicInteger(0);
             }
 
             @Override
             public void reduce(Integer value) {
-                moves += value.intValue();
+                moves.getAndAdd(value);
             }
 
             @Override
             public Integer finalizeReduce() {
-                return moves;
+                return moves.get();
             }
         }
     }

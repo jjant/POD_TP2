@@ -1,9 +1,7 @@
-import com.hazelcast.client.config.*;
 import com.hazelcast.client.HazelcastClient;
+import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.*;
-import com.hazelcast.mapreduce.*;
-
+import com.hazelcast.core.IList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +9,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class ClientManager {
-  private static Logger logger = LoggerFactory.getLogger(ClientManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(ClientManager.class);
 
   public static HazelcastInstance getClient(String inPath, List<String> nodes) throws IOException {
     final ClientConfig clientConfig = new ClientConfig();

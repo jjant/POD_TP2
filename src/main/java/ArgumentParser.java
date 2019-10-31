@@ -1,6 +1,5 @@
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -13,9 +12,7 @@ public class ArgumentParser {
             System.exit(1);
         }
 
-        List<String> nodes = Arrays.asList(addresses.replace("\'", "").split(";"));
-
-        return nodes;
+        return Arrays.asList(addresses.replace("\'", "").split(";"));
     }
 
     public static String getInPath(Logger logger) {

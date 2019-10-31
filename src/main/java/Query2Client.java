@@ -8,10 +8,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Query2Client {
-    private static Logger logger = LoggerFactory.getLogger(Query2Client.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query2Client.class);
 
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         public static final long serialVersionUID = 1L;
@@ -25,7 +26,7 @@ public class Query2Client {
     }
 
     public static class MoveRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Double>> {
-        private int N;
+        private final int N;
 
         public MoveRankingCollator(int N) {
             this.N = N;
@@ -36,7 +37,7 @@ public class Query2Client {
             // Calculate total amount of movements
             Long total = 0L;
             for (Map.Entry<String, Integer> entry : values) {
-                total += entry.getValue().intValue();
+                total += entry.getValue();
             }
 
             // Calculate percentages
@@ -62,7 +63,7 @@ public class Query2Client {
                     Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
 
             // Generate ranking map with top N + Others
-            Integer currentN = 1;
+            int currentN = 1;
             Map<String, Double> resultMap = new LinkedHashMap<>();
             Double accumulatedOtherPercentage = percentageNA;
             for (Map.Entry<String, Double> entry : sortedMap.entrySet()) {
@@ -86,7 +87,7 @@ public class Query2Client {
             return new MoveRankingCombiner();
         }
 
-        class MoveRankingCombiner extends Combiner<Integer, Integer> {
+        static class MoveRankingCombiner extends Combiner<Integer, Integer> {
             private int sum = 0;
 
             @Override
@@ -114,22 +115,22 @@ public class Query2Client {
             return new MoveRankingReducer();
         }
 
-        class MoveRankingReducer extends Reducer<Integer, Integer> {
-            private volatile int moves;
+        static class MoveRankingReducer extends Reducer<Integer, Integer> {
+            private volatile AtomicInteger moves;
 
             @Override
             public void beginReduce() {
-                moves = 0;
+                moves = new AtomicInteger(0);
             }
 
             @Override
             public void reduce(Integer value) {
-                moves += value.intValue();
+                moves.getAndAdd(value);
             }
 
             @Override
             public Integer finalizeReduce() {
-                return moves;
+                return moves.get();
             }
         }
 
@@ -176,7 +177,7 @@ public class Query2Client {
         lines.add(headers);
         for (Map.Entry<String, Double> entry : result.entrySet()) {
             String[] line = {entry.getKey(),
-                    String.format(java.util.Locale.US, "%.2f", entry.getValue().doubleValue()) + "%"};
+                    String.format(java.util.Locale.US, "%.2f", entry.getValue()) + "%"};
             lines.add(line);
         }
 

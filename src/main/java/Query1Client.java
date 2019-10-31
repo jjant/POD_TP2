@@ -11,9 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Query1Client {
-    private static Logger logger = LoggerFactory.getLogger(Query1Client.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query1Client.class);
 
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
@@ -30,29 +31,29 @@ public class Query1Client {
             return new MoveCountReducer();
         }
 
-        class MoveCountReducer extends Reducer<Integer, Integer> {
-            private volatile int moves;
+        static class MoveCountReducer extends Reducer<Integer, Integer> {
+            private volatile AtomicInteger moves;
 
             @Override
             public void beginReduce() {
-                moves = 0;
+                moves = new AtomicInteger(0);
             }
 
             @Override
             public void reduce(Integer value) {
-                moves += value.intValue();
+                moves.getAndAdd(value);
             }
 
             @Override
             public Integer finalizeReduce() {
-                return moves;
+                return moves.get();
             }
         }
     }
 
     private static class MoveCollator
             implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
-        private List<Airport> airports;
+        private final List<Airport> airports;
 
         public MoveCollator(List<Airport> airports) {
             this.airports = airports;
