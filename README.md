@@ -23,20 +23,20 @@ En este mismo repositorio se encuentra disponible el archivo `Reporte.pdf`, con 
 
 Query 1:
 ```
-./query1.sh -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/
+./query1 -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/
 ```
 
 Query 2:
 ```
-./query2.sh -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/ -Dn=5
+./query2 -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/ -Dn=5
 ```
 
 Query 3:
 ```
-./query3.sh -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/
+./query3 -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/
 ```
 
 Query 4:
 ```
-./query4.sh -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/ -Dn=5 -Doaci=SAEZ
+./query4 -Daddresses=127.0.0.1:5701 -DinPath=/Users/rama/Documents/POD_TP2/csvs/ -DoutPath=/Users/rama/Documents/POD_TP2/results/ -Dn=5 -Doaci=SAEZ
 ```
