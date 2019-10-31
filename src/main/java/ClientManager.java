@@ -11,31 +11,21 @@ import java.io.IOException;
 import java.util.List;
 
 public class ClientManager {
-  private static Logger logger = LoggerFactory.getLogger(Query2Client.class);
-  public HazelcastInstance hazelClient = null;
-  public IList<Move> iMoves;
-  public IList<Airport> iAirports;
-  public JobTracker jobTracker;
+  private static Logger logger = LoggerFactory.getLogger(ClientManager.class);
 
-  public void finish() {
-    hazelClient.shutdown();
-  }
-
-  public Job<String, Move> start(String job, String nodes) throws IOException {
-
-    // Set up Hazelcast client configuration
+  public static HazelcastInstance getClient(String inPath, List<String> nodes) throws IOException {
     final ClientConfig clientConfig = new ClientConfig();
     clientConfig.setProperty("hazelcast.logging.type", "none");
-    clientConfig.getNetworkConfig().setAddresses(Parse.parseNodes(nodes));
-    hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+    clientConfig.getNetworkConfig().setAddresses(nodes);
 
-    // Parse input files
+    final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
+
     logger.info("Inicio de la lectura de los archivos");
 
-    List<Move> moves = Parse.parseMoves();
-    List<Airport> airports = Parse.parseAirports();
-    iMoves = hazelClient.getList("g6-moves");
-    iAirports = hazelClient.getList("g6-airports");
+    List<Move> moves = Parse.parseMoves(inPath);
+    List<Airport> airports = Parse.parseAirports(inPath);
+    IList<Move> iMoves = hazelClient.getList(Configuration.iMoveCollectionName);
+    IList<Airport> iAirports = hazelClient.getList(Configuration.iAirportCollectionName);
 
     iMoves.clear();
     iAirports.clear();
@@ -44,11 +34,6 @@ public class ClientManager {
 
     logger.info("Fin de la lectura de los archivos");
 
-    // Setup key sources
-    jobTracker = hazelClient.getJobTracker(job);
-    final KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
-
-    return jobTracker.newJob(source);
+    return hazelClient;
   }
-
 }

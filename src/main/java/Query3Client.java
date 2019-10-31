@@ -1,4 +1,7 @@
-import com.hazelcast.core.*;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.core.IList;
+import com.hazelcast.core.IMap;
 import com.hazelcast.mapreduce.*;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -6,11 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class Query3Client {
-    private static Logger logger = LoggerFactory.getLogger(Query4Client.class);
+    private static Logger logger = LoggerFactory.getLogger(Query3Client.class);
 
     private static class MoveMapper implements Mapper<String, Move, String, Integer> {
         @Override
@@ -143,39 +148,50 @@ public class Query3Client {
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        ClientManager client = new ClientManager();
+        // Parse command-line arguments
+        List<String> nodes = ArgumentParser.getAddresses(logger);
+        String inPath = ArgumentParser.getInPath(logger);
+        String outPath = ArgumentParser.getOutPath(logger);
 
-        // Receive parameters (TODO)
-        String nodes = "127.0.0.1:5701";
+
+        // Initialize HazelCast client, loading files from the specified path
+        HazelcastInstance hazelClient = ClientManager.getClient(inPath, nodes);
+        JobTracker jobTracker = hazelClient.getJobTracker("move-pairs");
+
+        // Get references to distributed collections
+        IList<Move> iMoves = hazelClient.getList(Configuration.iMoveCollectionName);
+        KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        IList<Airport> iAirports = hazelClient.getList(Configuration.iAirportCollectionName);
 
         // Create job
-        Job<String, Move> job = client.start("move-pairs", nodes);
+        Job<String, Move> job = jobTracker.newJob(source);
 
-        // Process
+        // Start map/reduce
         logger.info("Inicio del trabajo map/reduce");
         ICompletableFuture<Map<String, Integer>> future = job.mapper(new MoveMapper())
                 .reducer(new MoveCountReducerFactory()).submit();
 
         // Load results in a temporary map in the server
         Map<String, Integer> map = future.get();
-        IMap<String, Integer> iMap = client.hazelClient.getMap("imap:oaci-moves");
+        IMap<String, Integer> iMap = hazelClient.getMap("imap:oaci-moves");
         iMap.clear();
         iMap.putAll(map);
 
-        Job<String, Integer> job2 = client.jobTracker.newJob(KeyValueSource.fromMap(iMap));
+        // Start second map/reduce
+        Job<String, Integer> job2 = jobTracker.newJob(KeyValueSource.fromMap(iMap));
         JobCompletableFuture<List<Pair<Integer, List<Pair<String, String>>>>> future2 = job2
                 .mapper(new ThousandsMapper()).reducer(new ThousandsReducerFactory()).submit(new GroupsCollator());
 
         // Output CSV
-        output(future2.get());
+        output(future2.get(), outPath);
         logger.info("Fin del trabajo map/reduce");
 
         // Close Hazelcast client
-        client.finish();
+        hazelClient.shutdown();
     }
 
-    private static void output(List<Pair<Integer, List<Pair<String, String>>>> queryResults) {
-        String[] headers = { "Grupo", "Aeropuerto A", "Aeropuerto B" };
+    private static void output(List<Pair<Integer, List<Pair<String, String>>>> queryResults, String outPath) {
+        String[] headers = {"Grupo", "Aeropuerto A", "Aeropuerto B"};
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
@@ -184,12 +200,12 @@ public class Query3Client {
             List<Pair<String, String>> pairs = group.getRight();
 
             for (Pair<String, String> pair : pairs) {
-                String[] line = { thousands.toString(), pair.getLeft(), pair.getRight() };
+                String[] line = {thousands.toString(), pair.getLeft(), pair.getRight()};
                 lines.add(line);
             }
         }
 
-        Output.print("./results/query3.csv", lines);
+        Output.print(outPath + "query3.csv", lines);
     }
 
 }

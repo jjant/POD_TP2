@@ -1,9 +1,4 @@
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.config.*;
-import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
@@ -27,8 +22,7 @@ public class Query1Client {
 
             context.emit(airportOaci, 1);
         }
-    } // { oaci: [EZ, EZ, ASF] }
-      // { EZ: [1, 1, 1, 1, 1], ASF: [1] }
+    }
 
     private static class MoveCountReducerFactory implements ReducerFactory<String, Integer, Integer> {
         @Override
@@ -95,37 +89,46 @@ public class Query1Client {
     }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        ClientManager client = new ClientManager();
+        // Parse command-line arguments
+        List<String> nodes = ArgumentParser.getAddresses(logger);
+        String inPath = ArgumentParser.getInPath(logger);
+        String outPath = ArgumentParser.getOutPath(logger);
 
-        // Receive parameters (TODO)
-        String nodes = "127.0.0.1:5701";
+        // Initialize HazelCast client, loading files from the specified path
+        HazelcastInstance hazelClient = ClientManager.getClient(inPath, nodes);
+        JobTracker jobTracker = hazelClient.getJobTracker("move-count");
+
+        // Get references to distributed collections
+        IList<Move> iMoves = hazelClient.getList(Configuration.iMoveCollectionName);
+        KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        IList<Airport> iAirports = hazelClient.getList(Configuration.iAirportCollectionName);
 
         // Create job
-        Job<String, Move> job = client.start("move-count", nodes);
+        Job<String, Move> job = jobTracker.newJob(source);
 
         // Process
         logger.info("Inicio del trabajo map/reduce");
         JobCompletableFuture<List<Triple<String, String, Integer>>> future = job.mapper(new MoveMapper())
-                .reducer(new MoveCountReducerFactory()).submit(new MoveCollator(client.iAirports));
+                .reducer(new MoveCountReducerFactory()).submit(new MoveCollator(iAirports));
 
         // Print results
-        serializeQuery(future.get());
+        serializeQuery(future.get(), outPath);
         logger.info("Fin del trabajo map/reduce");
 
         // Close Hazelcast client
-        client.finish();
+        hazelClient.shutdown();
     }
 
-    public static void serializeQuery(List<Triple<String, String, Integer>> queryResults) {
-        String[] headers = { "OACI", "Denominación", "Movimientos" };
+    public static void serializeQuery(List<Triple<String, String, Integer>> queryResults, String outPath) {
+        String[] headers = {"OACI", "Denominación", "Movimientos"};
         List<String[]> lines = new ArrayList<>();
 
         lines.add(headers);
         for (Triple<String, String, Integer> triple : queryResults) {
-            String[] line = { triple.getLeft(), triple.getMiddle(), triple.getRight().toString() };
+            String[] line = {triple.getLeft(), triple.getMiddle(), triple.getRight().toString()};
             lines.add(line);
         }
 
-        Output.print("./results/query1.csv", lines);
+        Output.print(outPath + "query1.csv", lines);
     }
 }

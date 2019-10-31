@@ -19,5 +19,4 @@ public class Output {
             System.exit(1);
         }
     }
-
 }
