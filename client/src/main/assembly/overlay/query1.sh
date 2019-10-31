@@ -7,7 +7,12 @@ then
     if [[ $param == -DoutPath=* ]];
     then
       SUBSTRING=$(echo $param| cut -d'=' -f 2)
-      java $* -cp 'lib/jars/*' "pod.client.Query1Client" > "${SUBSTRING}query1.txt"
+      if [[ $SUBSTRING == /* ]];
+      then
+        java $* -cp 'lib/jars/*' "pod.client.Query1Client" > "${SUBSTRING}query1.txt"
+      else
+        java $* -cp 'lib/jars/*' "pod.client.Query1Client" > "${SUBSTRING}/query1.txt"
+      fi
     fi
   done
 else

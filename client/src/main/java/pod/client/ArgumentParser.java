@@ -39,7 +39,8 @@ public class ArgumentParser {
             System.exit(1);
         }
 
-        return outPath.replace("\'", "");
+        String trimmedOutPath = outPath.replace("\'", "");
+        return trimmedOutPath.endsWith("/") ? trimmedOutPath : trimmedOutPath + "/" ;
     }
 
     public static int getN(Logger logger) {
