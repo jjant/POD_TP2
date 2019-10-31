@@ -1,6 +1,7 @@
 package pod.client;
 
 import pod.api.*;
+import pod.api.query3.*;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
@@ -23,98 +24,6 @@ import java.util.function.Function;
 
 public class Query3Client {
     private static final Logger logger = LoggerFactory.getLogger(Query3Client.class);
-
-    private static class MoveMapper implements Mapper<String, Move, String, Integer> {
-        @Override
-        public void map(String s, Move move, Context<String, Integer> context) {
-            String airportOaci = move.moveType == MoveType.Takeoff ? move.originOaci : move.destinationOaci;
-
-            context.emit(airportOaci, 1);
-        }
-    }
-
-    private static class MoveCountReducerFactory implements ReducerFactory<String, Integer, Integer> {
-        @Override
-        public Reducer<Integer, Integer> newReducer(String oaci) {
-            return new MoveCountReducer();
-        }
-
-        static class MoveCountReducer extends Reducer<Integer, Integer> {
-            private volatile AtomicInteger moves;
-
-            @Override
-            public void beginReduce() {
-                moves = new AtomicInteger(0);
-            }
-
-            @Override
-            public void reduce(Integer value) {
-                moves.getAndAdd(value);
-            }
-
-            @Override
-            public Integer finalizeReduce() {
-                return moves.get();
-            }
-        }
-    }
-
-    /**
-     * Groups Airports by number of (thousand) moves
-     */
-    private static class ThousandsMapper implements Mapper<String, Integer, Integer, String> {
-        @Override
-        public void map(String s, Integer moveCount, Context<Integer, String> context) {
-            int thousands = (int) (Math.floor(moveCount.doubleValue() / 1000L) * 1000L);
-
-            if (thousands != 0) {
-                context.emit(thousands, s);
-            }
-        }
-    }
-
-    private static class ThousandsReducerFactory
-            implements ReducerFactory<Integer, String, List<Pair<String, String>>> {
-
-        @Override
-        public Reducer<String, List<Pair<String, String>>> newReducer(Integer integer) {
-            return new ThousandsReducer();
-        }
-
-        static class ThousandsReducer extends Reducer<String, List<Pair<String, String>>> {
-            private List<String> airportsToPair;
-
-            @Override
-            public void beginReduce() {
-                airportsToPair = new ArrayList<>();
-            }
-
-            @Override
-            public void reduce(String s) {
-                airportsToPair.add(s);
-            }
-
-            @Override
-            public List<Pair<String, String>> finalizeReduce() {
-                List<Pair<String, String>> result = new ArrayList<>();
-
-                airportsToPair.sort(String::compareTo);
-
-                if (airportsToPair.size() >= 2) {
-                    for (int i = 0; i < airportsToPair.size(); i++) {
-                        for (int j = i + 1; j < airportsToPair.size(); j++) {
-                            String oaci1 = airportsToPair.get(i);
-                            String oaci2 = airportsToPair.get(j);
-
-                            result.add(new ImmutablePair<>(oaci1, oaci2));
-                        }
-                    }
-                }
-
-                return result;
-            }
-        }
-    }
 
     /**
      * Sort groups by move count and filter out groups with no airport-pairs

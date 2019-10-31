@@ -1,6 +1,7 @@
 package pod.client;
 
 import pod.api.*;
+import pod.api.query4.*;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
@@ -17,22 +18,6 @@ import java.util.stream.Collectors;
 
 public class Query4Client {
     private static final Logger logger = LoggerFactory.getLogger(Query4Client.class);
-
-    private static class MoveMapper implements Mapper<String, Move, String, Integer> {
-        public static final long serialVersionUID = 3L;
-        private final String originOaci;
-
-        public MoveMapper(String originOaci) {
-            this.originOaci = originOaci;
-        }
-
-        @Override
-        public void map(String s, Move move, Context<String, Integer> context) {
-            if (move.originOaci.equals(this.originOaci)) {
-                context.emit(move.destinationOaci, 1);
-            }
-        }
-    }
 
     public static class AirportRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Long>> {
         private final int N;
@@ -70,60 +55,6 @@ public class Query4Client {
             }
 
             return resultMap;
-        }
-    }
-
-    private static class AirportRankingCombinerFactory implements CombinerFactory<String, Integer, Integer> {
-        @Override
-        public Combiner<Integer, Integer> newCombiner(String key) {
-            return new AirportRankingCombiner();
-        }
-
-        static class AirportRankingCombiner extends Combiner<Integer, Integer> {
-            private int sum = 0;
-
-            @Override
-            public void combine(Integer value) {
-                sum++;
-            }
-
-            @Override
-            public Integer finalizeChunk() {
-                return sum;
-            }
-
-            @Override
-            public void reset() {
-                sum = 0;
-            }
-        }
-    }
-
-    private static class AirportRankingReducerFactory implements ReducerFactory<String, Integer, Integer> {
-        public static final long serialVersionUID = 4L;
-
-        @Override
-        public Reducer<Integer, Integer> newReducer(String airline) {
-            return new AirportRankingReducer();
-        }
-
-        static class AirportRankingReducer extends Reducer<Integer, Integer> {
-            private volatile AtomicInteger moves;
-
-            @Override
-            public void beginReduce() {
-                moves= new AtomicInteger(0);
-            }
-
-            @Override
-            public void reduce(Integer value) {
-                moves.getAndAdd(value);
-            }
-
-            @Override
-            public Integer finalizeReduce() {
-                return moves.get();
-            }
         }
     }
 

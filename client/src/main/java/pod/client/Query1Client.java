@@ -1,6 +1,8 @@
 package pod.client;
 
 import pod.api.*;
+import pod.api.query1.*;
+import pod.client.*;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IList;
@@ -15,47 +17,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Query1Client {
     private static final Logger logger = LoggerFactory.getLogger(Query1Client.class);
 
-    private static class MoveMapper implements Mapper<String, Move, String, Integer> {
-        @Override
-        public void map(String s, Move move, Context<String, Integer> context) {
-            String airportOaci = move.moveType == MoveType.Takeoff ? move.originOaci : move.destinationOaci;
-
-            context.emit(airportOaci, 1);
-        }
-    }
-
-    private static class MoveCountReducerFactory implements ReducerFactory<String, Integer, Integer> {
-        @Override
-        public Reducer<Integer, Integer> newReducer(String oaci) {
-            return new MoveCountReducer();
-        }
-
-        static class MoveCountReducer extends Reducer<Integer, Integer> {
-            private volatile AtomicInteger moves;
-
-            @Override
-            public void beginReduce() {
-                moves = new AtomicInteger(0);
-            }
-
-            @Override
-            public void reduce(Integer value) {
-                moves.getAndAdd(value);
-            }
-
-            @Override
-            public Integer finalizeReduce() {
-                return moves.get();
-            }
-        }
-    }
-
-    private static class MoveCollator
+    public static class MoveCollator
             implements Collator<Map.Entry<String, Integer>, List<Triple<String, String, Integer>>> {
         private final List<Airport> airports;
 

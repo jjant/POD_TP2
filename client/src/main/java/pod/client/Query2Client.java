@@ -1,6 +1,7 @@
 package pod.client;
 
 import pod.api.*;
+import pod.api.query2.*;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
@@ -17,17 +18,6 @@ import java.util.stream.Collectors;
 
 public class Query2Client {
     private static final Logger logger = LoggerFactory.getLogger(Query2Client.class);
-
-    private static class MoveMapper implements Mapper<String, Move, String, Integer> {
-        public static final long serialVersionUID = 1L;
-
-        @Override
-        public void map(String s, Move move, Context<String, Integer> context) {
-            if (move.flightType == FlightType.Domestic) {
-                context.emit(move.airline.equals("N/A") ? "" + move.hashCode() : move.airline, 1);
-            }
-        }
-    }
 
     public static class MoveRankingCollator implements Collator<Map.Entry<String, Integer>, Map<String, Double>> {
         private final int N;
@@ -84,62 +74,6 @@ public class Query2Client {
             return resultMap;
         }
     }
-
-    private static class MoveRankingCombinerFactory implements CombinerFactory<String, Integer, Integer> {
-        @Override
-        public Combiner<Integer, Integer> newCombiner(String key) {
-            return new MoveRankingCombiner();
-        }
-
-        static class MoveRankingCombiner extends Combiner<Integer, Integer> {
-            private int sum = 0;
-
-            @Override
-            public void combine(Integer value) {
-                sum++;
-            }
-
-            @Override
-            public Integer finalizeChunk() {
-                return sum;
-            }
-
-            @Override
-            public void reset() {
-                sum = 0;
-            }
-        }
-    }
-
-    private static class MoveRankingReducerFactory implements ReducerFactory<String, Integer, Integer> {
-        public static final long serialVersionUID = 2L;
-
-        @Override
-        public Reducer<Integer, Integer> newReducer(String airline) {
-            return new MoveRankingReducer();
-        }
-
-        static class MoveRankingReducer extends Reducer<Integer, Integer> {
-            private volatile AtomicInteger moves;
-
-            @Override
-            public void beginReduce() {
-                moves = new AtomicInteger(0);
-            }
-
-            @Override
-            public void reduce(Integer value) {
-                moves.getAndAdd(value);
-            }
-
-            @Override
-            public Integer finalizeReduce() {
-                return moves.get();
-            }
-        }
-
-    }
-
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         // Parse command-line arguments
