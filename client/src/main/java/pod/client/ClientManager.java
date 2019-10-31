@@ -19,6 +19,7 @@ public class ClientManager {
     final ClientConfig clientConfig = new ClientConfig();
     clientConfig.setProperty("hazelcast.logging.type", "none");
     clientConfig.getNetworkConfig().setAddresses(nodes);
+    clientConfig.getGroupConfig().setName("g6");
 
     final HazelcastInstance hazelClient = HazelcastClient.newHazelcastClient(clientConfig);
 
