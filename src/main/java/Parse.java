@@ -15,11 +15,11 @@ public class Parse {
     private static final int provinceIndexInCSV = 21;
 
 
-    public static List<Airport> parseAirports() throws IOException {
+    public static List<Airport> parseAirports(String inPath) throws IOException {
         List<Airport> airports = new ArrayList<>();
 
         final CSVParser parser = new CSVParserBuilder().withSeparator(';').build();
-        final CSVReader csvReader = new CSVReaderBuilder(new FileReader("./csvs/aeropuertos.csv"))
+        final CSVReader csvReader = new CSVReaderBuilder(new FileReader(inPath + "aeropuertos.csv"))
                 .withCSVParser(parser)
                 .withSkipLines(1)
                 .build();
@@ -38,16 +38,11 @@ public class Parse {
         return airports;
     }
 
-    public static List<String> parseNodes(String nodeString) throws IOException {
-        List<String> nodes = Arrays.asList(nodeString.split(";"));
-        return nodes;
-    }
-
-    public static List<Move> parseMoves() throws IOException {
+    public static List<Move> parseMoves(String inPath) throws IOException {
         List<Move> moves = new ArrayList<>();
 
         final CSVParser parser = new CSVParserBuilder().withSeparator(';').build();
-        final CSVReader csvReader = new CSVReaderBuilder(new FileReader("./csvs/movimientos.csv"))
+        final CSVReader csvReader = new CSVReaderBuilder(new FileReader(inPath + "movimientos.csv"))
                 .withCSVParser(parser)
                 .withSkipLines(1)
                 .build();

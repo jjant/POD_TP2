@@ -1,23 +1,12 @@
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.config.*;
-import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -146,29 +135,25 @@ public class Query2Client {
 
     }
 
-    private static void output(Map<String, Double> result) {
-        String[] headers = { "Aerolínea", "Porcentaje" };
-        List<String[]> lines = new ArrayList<>();
-
-        lines.add(headers);
-        for (Map.Entry<String, Double> entry : result.entrySet()) {
-            String[] line = { entry.getKey(),
-                    String.format(java.util.Locale.US, "%.2f", entry.getValue().doubleValue()) + "%" };
-            lines.add(line);
-        }
-
-        Output.print("./results/query2.csv", lines);
-    }
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        ClientManager client = new ClientManager();
+        // Parse command-line arguments
+        List<String> nodes = ArgumentParser.getAddresses(logger);
+        String inPath = ArgumentParser.getInPath(logger);
+        String outPath = ArgumentParser.getOutPath(logger);
+        int N = ArgumentParser.getN(logger);
 
-        // Receive parameters (TODO)
-        int N = 5;
-        String nodes = "127.0.0.1:5701";
+        // Initialize HazelCast client, loading files from the specified path
+        HazelcastInstance hazelClient = ClientManager.getClient(inPath, nodes);
+        JobTracker jobTracker = hazelClient.getJobTracker("move-ranking");
+
+        // Get references to distributed collections
+        IList<Move> iMoves = hazelClient.getList(Configuration.iMoveCollectionName);
+        KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        IList<Airport> iAirports = hazelClient.getList(Configuration.iAirportCollectionName);
 
         // Create job
-        Job<String, Move> job = client.start("move-ranking", nodes);
+        Job<String, Move> job = jobTracker.newJob(source);
 
         // Process
         logger.info("Inicio del trabajo map/reduce");
@@ -177,10 +162,24 @@ public class Query2Client {
                 .submit(new MoveRankingCollator(N));
 
         // Print results
-        output(future.get());
+        output(future.get(), outPath);
         logger.info("Fin del trabajo map/reduce");
 
         // Close Hazelcast client
-        client.finish();
+        hazelClient.shutdown();
+    }
+
+    private static void output(Map<String, Double> result, String outPath) {
+        String[] headers = {"Aerolínea", "Porcentaje"};
+        List<String[]> lines = new ArrayList<>();
+
+        lines.add(headers);
+        for (Map.Entry<String, Double> entry : result.entrySet()) {
+            String[] line = {entry.getKey(),
+                    String.format(java.util.Locale.US, "%.2f", entry.getValue().doubleValue()) + "%"};
+            lines.add(line);
+        }
+
+        Output.print(outPath + "query2.csv", lines);
     }
 }

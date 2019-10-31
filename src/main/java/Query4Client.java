@@ -1,23 +1,12 @@
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.config.*;
-import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;
 import com.hazelcast.mapreduce.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -133,7 +122,41 @@ public class Query4Client {
         }
     }
 
-    private static void output(Map<String, Long> result) {
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+        // Parse command-line arguments
+        List<String> nodes = ArgumentParser.getAddresses(logger);
+        String inPath = ArgumentParser.getInPath(logger);
+        String outPath = ArgumentParser.getOutPath(logger);
+        String originOaci = ArgumentParser.getOaci(logger);
+        int N = ArgumentParser.getN(logger);
+
+        // Initialize HazelCast client, loading files from the specified path
+        HazelcastInstance hazelClient = ClientManager.getClient(inPath, nodes);
+        JobTracker jobTracker = hazelClient.getJobTracker("airport-ranking");
+
+        // Get references to distributed collections
+        IList<Move> iMoves = hazelClient.getList(Configuration.iMoveCollectionName);
+        KeyValueSource<String, Move> source = KeyValueSource.fromList(iMoves);
+        IList<Airport> iAirports = hazelClient.getList(Configuration.iAirportCollectionName);
+
+        // Create job
+        Job<String, Move> job = jobTracker.newJob(source);
+
+        // Process
+        logger.info("Inicio del trabajo map/reduce");
+        ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
+                .combiner(new AirportRankingCombinerFactory()).reducer(new AirportRankingReducerFactory())
+                .submit(new AirportRankingCollator(N));
+
+        // Print results
+        output(future.get(), outPath);
+        logger.info("Fin del trabajo map/reduce");
+
+        // Close Hazelcast client
+        hazelClient.shutdown();
+    }
+
+    private static void output(Map<String, Long> result, String outPath) {
         String[] headers = { "OACI", "Despegues" };
         List<String[]> lines = new ArrayList<>();
 
@@ -143,31 +166,7 @@ public class Query4Client {
             lines.add(line);
         }
 
-        Output.print("./results/query4.csv", lines);
+        Output.print(outPath +"query4.csv", lines);
     }
 
-    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        ClientManager client = new ClientManager();
-
-        // Receive parameters (TODO)
-        int N = 5;
-        String originOaci = "SAEZ";
-        String nodes = "127.0.0.1:5701";
-
-        // Create job
-        Job<String, Move> job = client.start("airport-ranking", nodes);
-
-        // Process
-        logger.info("Inicio del trabajo map/reduce");
-        ICompletableFuture<Map<String, Long>> future = job.mapper(new MoveMapper(originOaci))
-                .combiner(new AirportRankingCombinerFactory()).reducer(new AirportRankingReducerFactory())
-                .submit(new AirportRankingCollator(N));
-
-        // Print results
-        output(future.get());
-        logger.info("Fin del trabajo map/reduce");
-
-        // Close Hazelcast client
-        client.finish();
-    }
 }
