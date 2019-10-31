@@ -1,3 +1,7 @@
+package pod.client;
+
+import pod.api.*;
+
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.core.HazelcastInstance;

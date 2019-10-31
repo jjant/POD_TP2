@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java  -cp 'lib/jars/*' "tp2.server.HazelServer" $*
+java -cp 'lib/jars/*' "pod.server.HazelServer" $*

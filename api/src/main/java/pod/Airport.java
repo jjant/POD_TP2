@@ -1,3 +1,5 @@
+package pod.api;
+
 import java.io.Serializable;
 
 public class Airport implements Serializable {

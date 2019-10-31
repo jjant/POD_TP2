@@ -1,4 +1,4 @@
 #!/bin/bash
 
-java -cp 'lib/jars/*' "pod.client.Client" $*
+java $* -cp 'lib/jars/*' "pod.client.Query1Client"
 

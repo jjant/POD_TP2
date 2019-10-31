@@ -1,3 +1,7 @@
+package pod.client;
+
+import pod.api.*;
+
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IList;

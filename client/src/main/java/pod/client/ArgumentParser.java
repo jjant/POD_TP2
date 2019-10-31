@@ -1,3 +1,7 @@
+package pod.client;
+
+import pod.api.*;
+
 import org.slf4j.Logger;
 
 import java.util.Arrays;
