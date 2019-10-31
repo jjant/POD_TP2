@@ -39,7 +39,7 @@ public class Query2Client {
             Double percentageNA = 0.0;
             for (Map.Entry<String, Integer> entry : values) {
                 Double percentage = entry.getValue().doubleValue() / new Double(total) * 100;
-                if (entry.getKey().trim().toUpperCase().equals("N/A") || entry.getKey().trim().equals("")) {
+                if (entry.getKey().equals("N/A")) {
                     percentageNA = percentage;
                     continue;
                 }
