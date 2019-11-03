@@ -8,6 +8,7 @@ public class HazelServer {
     public static void main(String[] args) {
         final Config config = new Config();
         config.setGroupConfig(new GroupConfig("g6"));
+
         Hazelcast.newHazelcastInstance(config);
     }
 }
