@@ -1,6 +1,6 @@
 # POD TP2: Análisis de datos de vuelos
 
-Sistema de votación distribuido implementado en Java 8 y Hazelcast.
+Sistema de análisis de datos de vuelos distribuido implementado en Java 8 y Hazelcast.
 
 ## Instrucciones de ejecución
 
