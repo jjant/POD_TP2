@@ -9,10 +9,6 @@ public class HazelServer {
         final Config config = new Config();
         config.setGroupConfig(new GroupConfig("g6"));
 
-        // Run 4 nodes
-        Hazelcast.newHazelcastInstance(config);
-        Hazelcast.newHazelcastInstance(config);
-        Hazelcast.newHazelcastInstance(config);
         Hazelcast.newHazelcastInstance(config);
     }
 }
